@@ -78,6 +78,9 @@ const ST = {
   miNombre: null,
 
   ws: null,
+  stationNameManual: 'OS',
+  positionHidden: false,
+  selectedTargets: [],  // hasta 3 blancos seleccionados simultaneamente para multi-panel
 };
 
 // Distancia (mn) y marcacion (grados) entre dos puntos lat/lon, aproximacion plana
@@ -232,6 +235,7 @@ function loadScenario(key){
   ST.current.dir = s.current.dir; ST.current.spd = s.current.spd;
   ST.targets = s.targets.map(t=>({...t}));
   ST.selectedTarget = ST.targets.length ? ST.targets[0].id : null;
+  ST.selectedTargets = ST.targets.length ? [ST.targets[0].id] : [];
 }
 
 // Init default scenario

@@ -19,6 +19,11 @@ function buildControlStrip(){
       <button class="btn on" data-src="manual">MANUAL</button>
       <button class="btn" data-src="live">VIVO (VS)</button>
       <span id="live-status" style="font-size:8px;color:#664400;margin-left:6px">○ Desconectado</span>
+      <div class="divider"></div>
+      <span class="ctrl-label">BUQUE/ESTACION</span>
+      <input type="text" id="station-input" value="OS" placeholder="Nombre" style="width:90px;background:#000;border:1px solid #1a3a1a;color:#ffff00;font-family:'Courier New',monospace;font-size:9px;padding:3px 5px;border-radius:2px">
+      <div class="divider"></div>
+      <button class="btn on" id="toggle-position">POSICION: VISIBLE</button>
     </div>
 
     <div class="ctrl-row">
@@ -43,6 +48,13 @@ function buildControlStrip(){
       <div class="divider"></div>
       <button class="btn on" id="toggle-rings">ANILLOS</button>
       <button class="btn" id="toggle-trail">TRAIL</button>
+      <span class="ctrl-label" style="min-width:auto">tiempo:</span>
+      <button class="btn btn-sm" data-trailmin="3">3m</button>
+      <button class="btn btn-sm on" data-trailmin="6">6m</button>
+      <button class="btn btn-sm" data-trailmin="10">10m</button>
+      <button class="btn btn-sm" data-trailmin="15">15m</button>
+      <button class="btn btn-sm" data-trailmin="30">30m</button>
+      <div class="divider"></div>
       <button class="btn warn" id="toggle-interference">INTERFER.</button>
     </div>
 
@@ -112,8 +124,23 @@ function buildControlStrip(){
     document.getElementById('manual-os-row').style.opacity = (ST.SOURCE==='live')?'0.4':'1';
     document.getElementById('manual-os-row').querySelectorAll('input').forEach(i=>i.disabled=(ST.SOURCE==='live'));
     if(ST.SOURCE==='live' && !ST.ws) connectWS();
+    updateStationLabel();
     upd();
   }));
+
+  // Station/ship name (manual override; live mode shows MI_NOMBRE from puente)
+  document.getElementById('station-input').addEventListener('input', function(){
+    ST.stationNameManual = this.value || 'OS';
+    updateStationLabel();
+  });
+
+  // Position visibility toggle (hide lat/lon so cadets must read the radar, not GPS)
+  document.getElementById('toggle-position').addEventListener('click', function(){
+    ST.positionHidden = !ST.positionHidden;
+    this.textContent = 'POSICION: ' + (ST.positionHidden ? 'OCULTA' : 'VISIBLE');
+    this.classList.toggle('warn', ST.positionHidden);
+    upd();
+  });
 
   // Range
   el.querySelectorAll('[data-rng]').forEach(b=>b.addEventListener('click',()=>{
@@ -138,6 +165,11 @@ function buildControlStrip(){
   document.getElementById('toggle-trail').addEventListener('click',function(){
     ST.TRAIL=!ST.TRAIL; this.classList.toggle('on',ST.TRAIL); upd();
   });
+  el.querySelectorAll('[data-trailmin]').forEach(b=>b.addEventListener('click',()=>{
+    el.querySelectorAll('[data-trailmin]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); ST.TRAILMIN=parseFloat(b.dataset.trailmin);
+    upd();
+  }));
   document.getElementById('toggle-interference').addEventListener('click',function(){
     ST.INTERFERENCE=!ST.INTERFERENCE; this.classList.toggle('on',ST.INTERFERENCE); upd();
   });
@@ -256,7 +288,7 @@ function buildSidebar(){
     </div>
 
     <div class="tt-block">
-      <div class="panel-title" style="margin-bottom:5px">PANEL TT / ACQ TARGETS</div>
+      <div class="panel-title" style="margin-bottom:5px">PANEL TT / ACQ TARGETS <span style="font-size:7px;color:#336633;font-weight:normal">(max. 3)</span></div>
       <div class="tt-select" id="tt-select"></div>
       <div id="tt-data"></div>
     </div>
@@ -283,6 +315,11 @@ function buildSidebar(){
   buildTTSelect();
 }
 
+function updateStationLabel(){
+  const name = (ST.SOURCE==='live' && ST.miNombre) ? ST.miNombre : ST.stationNameManual;
+  document.getElementById('station-name').textContent = 'BUQUE: ' + name;
+}
+
 function syncManualSlidersFromState(){
   document.getElementById('os-hdg').value = ST.os.hdg;
   document.getElementById('os-hdg-v').textContent = String(ST.os.hdg).padStart(3,'0')+'°';
@@ -296,13 +333,24 @@ function syncManualSlidersFromState(){
 
 function buildTTSelect(){
   const sel = document.getElementById('tt-select');
+  // Migrate legacy single-selection into the new multi array, once
+  if(ST.selectedTargets.length===0 && ST.selectedTarget){
+    ST.selectedTargets = [ST.selectedTarget];
+  }
   sel.innerHTML = ST.targets.map(t=>
-    `<button class="tt-btn ${t.id===ST.selectedTarget?'on':''}" data-tid="${t.id}">${t.isRemoteAis?'📡 ':''}${t.name}</button>`
+    `<button class="tt-btn ${ST.selectedTargets.includes(t.id)?'on':''}" data-tid="${t.id}">${t.isRemoteAis?'📡 ':''}${t.name}</button>`
   ).join('');
   sel.querySelectorAll('[data-tid]').forEach(b=>b.addEventListener('click',()=>{
-    ST.selectedTarget = b.dataset.tid;
-    sel.querySelectorAll('.tt-btn').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on');
+    const tid = b.dataset.tid;
+    const idx = ST.selectedTargets.indexOf(tid);
+    if(idx>=0){
+      ST.selectedTargets.splice(idx,1);
+    } else {
+      if(ST.selectedTargets.length>=3) ST.selectedTargets.shift(); // drop oldest, keep max 3
+      ST.selectedTargets.push(tid);
+    }
+    ST.selectedTarget = ST.selectedTargets[ST.selectedTargets.length-1] || null; // keep legacy field for ARPA vector on canvas
+    buildTTSelect();
     upd();
   }));
 }
@@ -314,7 +362,7 @@ function updateSidebarData(){
   document.getElementById('d-cog').textContent = String(Math.round(os.cog)).padStart(3,'0')+'°';
   document.getElementById('d-sog').textContent = os.sog.toFixed(1)+' kn';
   const ll = fmtLatLon(os.lat, os.lon);
-  document.getElementById('d-pos').textContent = ll.lat+'  '+ll.lon;
+  document.getElementById('d-pos').textContent = ST.positionHidden ? '••• OCULTA •••' : (ll.lat+'  '+ll.lon);
   document.getElementById('d-cur').textContent = String(Math.round(os.curdir)).padStart(3,'0')+'° / '+os.curspd.toFixed(1)+'kn';
 
   const srcInd = document.getElementById('src-indicator');
@@ -341,29 +389,35 @@ function updateSidebarData(){
   document.getElementById('d-ebl1').textContent = ST.ebl1.on ? String(ST.ebl1.brg).padStart(3,'0')+'°' : 'OFF';
   document.getElementById('d-ebl2').textContent = ST.ebl2.on ? String(ST.ebl2.brg).padStart(3,'0')+'°' : 'OFF';
 
-  // TT panel for selected target
+  // TT panel for ALL selected targets (up to 3), shown stacked compactly
   const ttDiv = document.getElementById('tt-data');
-  const tgt = ST.targets.find(t=>t.id===ST.selectedTarget);
-  if(!tgt){ ttDiv.innerHTML = '<div style="font-size:9px;color:#336633">Sin blanco seleccionado</div>'; return os; }
+  if(ST.selectedTargets.length===0){
+    ttDiv.innerHTML = '<div style="font-size:9px;color:#336633">Sin blancos seleccionados — tocá uno o más arriba</div>';
+    return os;
+  }
 
-  const sol = computeTargetSolution(os, tgt);
-  const cpaClass = (!isNaN(sol.cpa) && sol.cpa<0.5) ? 'danger' : (!isNaN(sol.cpa) && sol.cpa<2 ? 'warn' : 'ok');
-
-  ttDiv.innerHTML = `
-    <div class="tt-row"><span class="lbl">NOMBRE</span><span class="val" style="color:#ffff00">${tgt.name}</span></div>
-    <div class="tt-row"><span class="lbl">MMSI</span><span class="val">${tgt.mmsi}</span></div>
-    <div class="tt-row"><span class="lbl">BRG</span><span class="val">${String(Math.round(tgt.brg)).padStart(3,'0')}°R</span></div>
-    <div class="tt-row"><span class="lbl">RNG</span><span class="val">${tgt.dst.toFixed(3)} NM</span></div>
-    <div class="tt-row"><span class="lbl">HDG</span><span class="val">${String(Math.round(tgt.hdg)).padStart(3,'0')}°</span></div>
-    <div class="tt-row"><span class="lbl">STW</span><span class="val">${tgt.stw.toFixed(1)} kn</span></div>
-    <div class="tt-row"><span class="lbl">COG</span><span class="val" style="color:#aaffaa">${String(Math.round(sol.tgt_cog)).padStart(3,'0')}°</span></div>
-    <div class="tt-row"><span class="lbl">SOG</span><span class="val" style="color:#aaffaa">${sol.tgt_sog.toFixed(1)} kn</span></div>
-    <div class="tt-row"><span class="lbl">CPA</span><span class="val ${cpaClass}">${isNaN(sol.cpa)?'—':sol.cpa.toFixed(3)+' NM'}</span></div>
-    <div class="tt-row"><span class="lbl">TCPA</span><span class="val ${cpaClass}">${fmtTime(sol.tcpa)}</span></div>
-    <div class="tt-row"><span class="lbl">BCR</span><span class="val">${sol.bcr!==null?sol.bcr.toFixed(3)+' NM':'—'}</span></div>
-    <div class="tt-row"><span class="lbl">BCT</span><span class="val">${sol.bct!==null?fmtTime(sol.bct):'—'}</span></div>
-    <div class="tt-row"><span class="lbl">STATUS</span><span class="val">${tgt.status}</span></div>
-  `;
+  ttDiv.innerHTML = ST.selectedTargets.map(tid=>{
+    const tgt = ST.targets.find(t=>t.id===tid);
+    if(!tgt) return '';
+    const sol = computeTargetSolution(os, tgt);
+    const cpaClass = (!isNaN(sol.cpa) && sol.cpa<0.5) ? 'danger' : (!isNaN(sol.cpa) && sol.cpa<2 ? 'warn' : 'ok');
+    return `
+      <div style="border:1px solid #0f2a0f;border-radius:3px;padding:5px 6px;margin-bottom:5px;background:#020a02">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="color:#ffff00;font-weight:bold;font-size:10px">${tgt.isRemoteAis?'📡 ':''}${tgt.name}</span>
+          <span style="font-size:8px;color:#336633">${tgt.mmsi}</span>
+        </div>
+        <div class="tt-row"><span class="lbl">BRG/RNG</span><span class="val">${String(Math.round(tgt.brg)).padStart(3,'0')}°R / ${tgt.dst.toFixed(2)} NM</span></div>
+        <div class="tt-row"><span class="lbl">HDG/STW</span><span class="val">${String(Math.round(tgt.hdg)).padStart(3,'0')}° / ${tgt.stw.toFixed(1)} kn</span></div>
+        <div class="tt-row"><span class="lbl">COG/SOG</span><span class="val" style="color:#aaffaa">${String(Math.round(sol.tgt_cog)).padStart(3,'0')}° / ${sol.tgt_sog.toFixed(1)} kn</span></div>
+        <div class="tt-row"><span class="lbl">CPA</span><span class="val ${cpaClass}">${isNaN(sol.cpa)?'—':sol.cpa.toFixed(3)+' NM'}</span></div>
+        <div class="tt-row"><span class="lbl">TCPA</span><span class="val ${cpaClass}">${fmtTime(sol.tcpa)}</span></div>
+        <div class="tt-row"><span class="lbl">BCR</span><span class="val">${sol.bcr!==null?sol.bcr.toFixed(3)+' NM':'—'}</span></div>
+        <div class="tt-row"><span class="lbl">BCT</span><span class="val">${sol.bct!==null?fmtTime(sol.bct):'—'}</span></div>
+        <div class="tt-row"><span class="lbl">STATUS</span><span class="val">${tgt.status}</span></div>
+      </div>
+    `;
+  }).join('');
 
   return os;
 }

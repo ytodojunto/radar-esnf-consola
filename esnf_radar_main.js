@@ -42,6 +42,7 @@ function connectWS(){
 }
 
 function upd(){
+  updateStationLabel();
   if(ST.SOURCE==='live'){
     const osPreview = computeOwnShip();
     syncRemoteAisTargets(osPreview.lat, osPreview.lon);

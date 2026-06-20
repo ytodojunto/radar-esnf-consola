@@ -94,7 +94,7 @@ function drawRadar(os){
   // === Targets ===
   ST.targets.forEach(tgt=>{
     const sol = computeTargetSolution(os, tgt);
-    const isSelected = tgt.id===ST.selectedTarget;
+    const isSelected = ST.selectedTargets.includes(tgt.id);
     const [txs,tys] = ts(sol.pos.x, sol.pos.y);
 
     // trail
@@ -186,7 +186,8 @@ function drawRadar(os){
   ctx.beginPath();
   const [p1x,p1y]=rot(0,-9), [p2x,p2y]=rot(-5,5), [p3x,p3y]=rot(5,5);
   ctx.moveTo(p1x,p1y); ctx.lineTo(p2x,p2y); ctx.lineTo(p3x,p3y); ctx.closePath(); ctx.fill();
-  txt(CX-7,CY+16, ST.SOURCE==='live' ? 'OS ▶VIVO' : 'OS', 'bold 9px Courier New','#00ff41',screenRot);
+  const stLabel = (ST.SOURCE==='live' && ST.miNombre) ? ST.miNombre : ST.stationNameManual;
+  txt(CX-7,CY+16, ST.SOURCE==='live' ? stLabel+' ▶VIVO' : stLabel, 'bold 9px Courier New','#00ff41',screenRot);
 
   // VRM rings
   [ST.vrm1, ST.vrm2].forEach((v,i)=>{

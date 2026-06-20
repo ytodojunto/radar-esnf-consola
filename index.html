@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RADAR ESNF — Escuela Nacional Fluvial</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#000;font-family:'Courier New',monospace;color:#00ff41;overflow:hidden;user-select:none}
+#app{display:flex;height:100vh;width:100vw}
+
+/* ===== LEFT: RADAR DISPLAY AREA ===== */
+.radar-col{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.top-bar{background:#050f05;border-bottom:1px solid #1a4a1a;padding:3px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:8px}
+.brand img{height:34px;width:auto;border-radius:2px;opacity:.9}
+.brand-text{font-size:9px;font-weight:bold;color:#c8a020;letter-spacing:1px;line-height:1.3}
+.brand-text .b2{color:#00ff41;font-size:13px;letter-spacing:3px}
+.top-info{display:flex;gap:14px;font-size:9px;color:#336633;flex-wrap:wrap}
+.top-info b{color:#00cc33}
+.clock{color:#ffff00;font-size:12px;font-weight:bold}
+
+.radar-wrap{flex:1;position:relative;background:#000;overflow:hidden;min-height:0}
+canvas{display:block}
+
+/* ===== BOTTOM CONTROL STRIP ===== */
+.ctrl-strip{background:#030d03;border-top:1px solid #0f2a0f;flex-shrink:0;display:flex;flex-direction:column}
+.ctrl-row{display:flex;align-items:center;gap:4px;padding:3px 8px;border-bottom:1px solid #0a1f0a;flex-wrap:wrap}
+.ctrl-row:last-child{border-bottom:none}
+.ctrl-label{font-size:8px;color:#336633;letter-spacing:.5px;margin-right:2px;min-width:54px}
+.btn{padding:3px 9px;font-size:9px;font-family:'Courier New',monospace;border:1px solid #1a3a1a;background:#000;color:#336633;cursor:pointer;letter-spacing:.4px;transition:all .12s;border-radius:2px;white-space:nowrap}
+.btn:hover{border-color:#00ff41;color:#00ff41}
+.btn.on{background:#0a2a0a;border-color:#00ff41;color:#00ff41;font-weight:bold}
+.btn.warn.on{background:#2a1a00;border-color:#ffaa00;color:#ffaa00}
+.btn.danger.on{background:#2a0000;border-color:#ff3333;color:#ff3333}
+.btn-sm{padding:2px 6px;font-size:8px}
+.slider-mini{display:flex;align-items:center;gap:3px}
+.slider-mini input[type=range]{width:60px;height:10px;accent-color:#00ff41;cursor:pointer}
+.slider-mini span{font-size:8px;color:#ffff00;min-width:22px;text-align:right}
+.divider{width:1px;height:16px;background:#1a3a1a;margin:0 4px}
+
+/* ===== RIGHT: DATA SIDEBAR ===== */
+.sidebar{width:230px;background:#050f05;border-left:1px solid #1a4a1a;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.panel{border-bottom:1px solid #0f2a0f;padding:6px 8px;flex-shrink:0}
+.panel-title{font-size:9px;color:#00ccff;font-weight:bold;letter-spacing:1px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.panel-title .src{font-size:8px;color:#664400}
+.panel-title .src.live{color:#44ff88}
+.data-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px}
+.data-item{display:flex;flex-direction:column}
+.data-item .dl{font-size:8px;color:#336633;letter-spacing:.3px}
+.data-item .dv{font-size:15px;font-weight:bold;color:#00ff41;line-height:1.2}
+.data-item .dv.pos{font-size:12px}
+.data-item.full{grid-column:1/-1}
+
+.tt-block{border-bottom:1px solid #0f2a0f;padding:6px 8px;flex-shrink:0}
+.tt-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px}
+.tt-row .lbl{color:#336633}
+.tt-row .val{color:#00ff41;font-weight:bold}
+.tt-row .val.danger{color:#ff3333}
+.tt-row .val.warn{color:#ffaa00}
+.tt-row .val.ok{color:#44ff88}
+.tt-select{display:flex;gap:3px;margin-bottom:5px;flex-wrap:wrap}
+.tt-btn{padding:2px 7px;font-size:8px;border:1px solid #1a3a1a;background:#000;color:#336633;cursor:pointer;border-radius:2px}
+.tt-btn.on{background:#0a2a0a;border-color:#ffff00;color:#ffff00}
+
+.legend-box{padding:5px 8px;font-size:8px;color:#2a6a3a;border-bottom:1px solid #0f2a0f;line-height:1.6}
+.legend-box .li{display:flex;align-items:center;gap:5px;margin-bottom:1px}
+.legend-box .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+.scenario-block{padding:6px 8px;border-bottom:1px solid #0f2a0f}
+.scenario-block .stitle{font-size:8px;color:#336633;margin-bottom:4px;letter-spacing:.5px}
+.scenario-btns{display:flex;flex-direction:column;gap:2px}
+.scenario-btns .btn{text-align:left;font-size:8px;padding:3px 6px}
+
+/* disabled inputs */
+input:disabled{opacity:.4;cursor:not-allowed}
+
+/* MOB alert overlay */
+.mob-alert{position:absolute;top:0;left:0;right:0;background:#3a0000;color:#ff4444;text-align:center;font-weight:bold;font-size:13px;padding:6px;letter-spacing:2px;z-index:10;display:none;animation:blink 1s infinite}
+.mob-alert.show{display:block}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0.3}}
+
+/* scrollbar */
+.sidebar::-webkit-scrollbar{width:6px}
+.sidebar::-webkit-scrollbar-track{background:#050f05}
+.sidebar::-webkit-scrollbar-thumb{background:#1a4a1a;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="radar-col">
+    <div class="top-bar">
+      <div class="brand">
+        <img src="ESNF_FONDO.jpg" alt="ENF">
+        <div class="brand-text">
+          ESCUELA NACIONAL FLUVIAL<br>
+          <span class="b2">RADAR ESNF</span>
+        </div>
+      </div>
+      <div class="top-info">
+        <span id="info-orient"><b>NORTH UP</b></span>
+        <span id="info-mode"><b>RM</b></span>
+        <span id="info-vector"><b>TRUE-V 6min</b></span>
+        <span id="info-range"><b>RNG 4NM</b></span>
+        <span id="info-cpaalarm"><b>CPA ALM 0.5NM/10min</b></span>
+      </div>
+      <span class="clock" id="clk">--:--:--</span>
+    </div>
+
+    <div class="radar-wrap" id="radar-wrap">
+      <div class="mob-alert" id="mob-alert">⚠ MAN OVERBOARD ⚠ — MOB MARCADO</div>
+      <canvas id="rc"></canvas>
+    </div>
+
+    <div class="ctrl-strip" id="ctrl-strip"></div>
+  </div>
+
+  <div class="sidebar" id="sidebar"></div>
+
+</div>
+
+<script src="esnf_radar_data.js"></script>
+<script src="esnf_radar_ui.js"></script>
+<script src="esnf_radar_draw.js"></script>
+<script src="esnf_radar_main.js"></script>
+</body>
+</html>

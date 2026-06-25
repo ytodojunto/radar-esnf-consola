@@ -289,14 +289,14 @@ async function loadNavObjects(){
 
 // Colores y simbolos por tipo de objeto (estilo radar/carta nautica)
 const OBJ_STYLE = {
-  boya:     { color:'#44aaff', size:3,  shape:'circle'   },
-  verde:    { color:'#00ff41', size:4,  shape:'triangle'  },
-  rojo:     { color:'#ff3333', size:4,  shape:'triangle'  },
-  blanco:   { color:'#ffffff', size:3,  shape:'diamond'   },
-  amarillo: { color:'#ffff00', size:4,  shape:'diamond'   },
-  faro:     { color:'#ffff00', size:6,  shape:'star'      },
-  puente:   { color:'#aaaaaa', size:5,  shape:'square'    },
-  peligro:  { color:'#ff6600', size:5,  shape:'cross'     },
-  cardinal: { color:'#ffff00', size:4,  shape:'diamond'   },
-  baliza:   { color:'#aaaaaa', size:3,  shape:'circle'    },
+  boya:     { color:'#00ff41', size:2,  shape:'circle'   },
+  verde:    { color:'#00ff41', size:3,  shape:'triangle'  },
+  rojo:     { color:'#00ff41', size:3,  shape:'triangle'  },
+  blanco:   { color:'#00ff41', size:2,  shape:'diamond'   },
+  amarillo: { color:'#00ff41', size:3,  shape:'diamond'   },
+  faro:     { color:'#00ff41', size:5,  shape:'star'      },
+  puente:   { color:'#00ff41', size:4,  shape:'square'    },
+  peligro:  { color:'#00ff41', size:4,  shape:'cross'     },
+  cardinal: { color:'#00ff41', size:3,  shape:'diamond'   },
+  baliza:   { color:'#00ff41', size:2,  shape:'circle'    },
 };

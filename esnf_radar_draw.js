@@ -20,8 +20,10 @@ function drawRadar(os){
   const wrap = document.getElementById('radar-wrap');
   const W = wrap.clientWidth, H = wrap.clientHeight;
   cv.width = W; cv.height = H;
-  const CX = W/2, CY = H/2;
+  // Centro de la pantalla desplazado por off-center (en pixeles)
   const PX = Math.min(W,H)*0.43/ST.RNG;
+  const CX = W/2 + ST.offX*PX;
+  const CY = H/2 - ST.offY*PX;
 
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
 
@@ -244,9 +246,10 @@ function drawRadar(os){
   ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(ovex,ovey); ctx.stroke();
   ctx.setLineDash([]);
 
-  // OS heading line (solid)
-  const [hlOx,hlOy] = [CX+Math.sin(osr)*ST.RNG*PX*0.18, CY-Math.cos(osr)*ST.RNG*PX*0.18];
-  ctx.strokeStyle='#00ff41'; ctx.lineWidth=1.2;
+  // OS heading line (solid) — va del centro hasta el borde del rango visible
+  const rr = ST.RNG*PX;
+  const [hlOx,hlOy] = [CX+Math.sin(osr)*rr, CY-Math.cos(osr)*rr];
+  ctx.strokeStyle='#00ff41'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(hlOx,hlOy); ctx.stroke();
 
   // OS triangle
@@ -323,6 +326,51 @@ function drawRadar(os){
     ctx.fillStyle='#ffff00';
     ctx.beginPath();
     ctx.moveTo(CX,8); ctx.lineTo(CX-5,18); ctx.lineTo(CX+5,18); ctx.closePath(); ctx.fill();
+  }
+
+  // Off-center indicator — small circle showing where OS actually is when off-center
+  if(ST.offX!==0 || ST.offY!==0){
+    ctx.strokeStyle='rgba(0,255,65,0.4)'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.arc(CX,CY,8,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    // Reset button hint
+    ctx.fillStyle='rgba(0,255,65,0.6)'; ctx.font='8px Courier New';
+    ctx.fillText('OFF-CTR  [dbl-click]=reset', W/2-55, H-8);
+  }
+
+  // Cursor cross + BRG/RNG readout
+  if(ST._cursorX!==null && ST._cursorY!==null){
+    const mx=ST._cursorX, my=ST._cursorY;
+    const sz=12;
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(mx-sz,my); ctx.lineTo(mx+sz,my);
+    ctx.moveTo(mx,my-sz); ctx.lineTo(mx,my+sz);
+    ctx.stroke();
+    // Small gap in center (classic radar cursor style)
+    ctx.clearRect(mx-3,my-3,6,6);
+
+    // BRG/RNG from OS to cursor
+    const dxNM = (mx - CX)/PX;
+    const dyNM = (CY - my)/PX;
+    // Rotate back from screen orientation to true north
+    let screenRot2 = 0;
+    if(ST.ORI==='head') screenRot2 = os.hdg;
+    else if(ST.ORI==='course') screenRot2 = os.cog;
+    const sinR=Math.sin(d2r(screenRot2)), cosR=Math.cos(d2r(screenRot2));
+    const trueDX = dxNM*cosR + dyNM*sinR;
+    const trueDY = -dxNM*sinR + dyNM*cosR;
+    const cursorBrg = norm360(r2d(Math.atan2(trueDX, trueDY)));
+    const cursorRng = Math.sqrt(trueDX*trueDX + trueDY*trueDY);
+
+    const label = String(Math.round(cursorBrg)).padStart(3,'0')+'°  '+cursorRng.toFixed(2)+' NM';
+    ctx.font='bold 10px Courier New';
+    const tw=ctx.measureText(label).width;
+    let lx=mx+14, ly=my-8;
+    if(lx+tw+6>W) lx=mx-tw-14;
+    if(ly-4<0) ly=my+18;
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(lx-3,ly-11,tw+6,14);
+    ctx.fillStyle='#ffffff'; ctx.fillText(label,lx,ly);
   }
 }
 

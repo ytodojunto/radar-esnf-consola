@@ -44,7 +44,6 @@ function buildControlStrip(){
       <button class="btn btn-sm" data-vec="30">30</button>
       <div class="divider"></div>
       <button class="btn on" id="toggle-rings">ANILLOS</button>
-      <button class="btn on" id="toggle-objects">BOYAS/BALIZAS</button>
       <button class="btn" id="toggle-trail">TRAIL</button>
       <span class="ctrl-label" style="min-width:auto">tiempo:</span>
       <button class="btn btn-sm" data-trailmin="3">3m</button>
@@ -143,9 +142,6 @@ function buildControlStrip(){
   // Toggles
   document.getElementById('toggle-rings').addEventListener('click',function(){
     ST.RINGS=!ST.RINGS; this.classList.toggle('on',ST.RINGS); upd();
-  });
-  document.getElementById('toggle-objects').addEventListener('click',function(){
-    ST.SHOW_OBJECTS=!ST.SHOW_OBJECTS; this.classList.toggle('on',ST.SHOW_OBJECTS); upd();
   });
   document.getElementById('toggle-trail').addEventListener('click',function(){
     ST.TRAIL=!ST.TRAIL; this.classList.toggle('on',ST.TRAIL); upd();
@@ -311,21 +307,21 @@ function toggleTxStby(){
 }
 
 function updateTxBar(){
+  // Sidebar tx-bar
   const bar = document.getElementById('tx-bar');
-  if(!bar) return;
+  // Top-bar tx-btn
+  const btn = document.getElementById('tx-btn');
   if(ST.SOURCE==='live'){
     if(ST.live && ST.live.conectado_vs){
-      bar.textContent='TX — RECIBIENDO DATOS';
-      bar.className='tx-bar tx';
+      if(bar){ bar.textContent='TX — RECIBIENDO DATOS'; bar.className='tx-bar tx'; bar.style.color=''; }
+      if(btn){ btn.textContent='TX'; btn.style.color='#00ff41'; btn.style.borderColor='#00ff41'; btn.style.background='#001a00'; }
     } else {
-      bar.textContent='TX — CONECTANDO...';
-      bar.className='tx-bar tx';
-      bar.style.color='#ffaa00';
+      if(bar){ bar.textContent='TX — CONECTANDO...'; bar.className='tx-bar tx'; bar.style.color='#ffaa00'; }
+      if(btn){ btn.textContent='TX'; btn.style.color='#ffaa00'; btn.style.borderColor='#ffaa00'; btn.style.background='#0a0800'; }
     }
   } else {
-    bar.textContent='STBY';
-    bar.className='tx-bar stby';
-    bar.style.color='';
+    if(bar){ bar.textContent='STBY'; bar.className='tx-bar stby'; bar.style.color=''; }
+    if(btn){ btn.textContent='STBY'; btn.style.color='#444'; btn.style.borderColor='#333'; btn.style.background='#080808'; }
   }
 }
 

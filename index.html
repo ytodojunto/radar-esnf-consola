@@ -121,7 +121,10 @@ input:disabled{opacity:.4;cursor:not-allowed}
         <span id="info-range"><b>RNG 4NM</b></span>
         <span id="info-cpaalarm"><b>CPA ALM 0.5NM/10min</b></span>
       </div>
-      <span class="clock" id="clk">--:--:--</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="tx-btn" onclick="toggleTxStby()" style="cursor:pointer;padding:4px 12px;border:2px solid #003300;font-size:13px;font-weight:bold;letter-spacing:3px;background:#080808;color:#444;font-family:'Courier New',monospace">STBY</div>
+        <span class="clock" id="clk">--:--:--</span>
+      </div>
     </div>
 
     <div class="radar-wrap" id="radar-wrap">

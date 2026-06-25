@@ -50,10 +50,16 @@ function upd(){
     syncRealAisTargets(osPreview.lat, osPreview.lon);
     buildTTSelect();
   }
+  // Off-center button indicator
+  const offBtn = document.getElementById('btn-offctr');
+  if(offBtn){
+    const isOff = ST.offX!==0 || ST.offY!==0;
+    offBtn.textContent = isOff ? 'OFF-CTR: ACTIVO' : 'OFF-CTR: ON';
+    offBtn.classList.toggle('warn', isOff);
+  }
   const os = updateSidebarData();
   drawRadar(os);
 }
-
 function tick(){
   const n = new Date();
   document.getElementById('clk').textContent =
@@ -69,12 +75,58 @@ function trailLoop(){
 
 window.addEventListener('resize', upd);
 
+// ===== CURSOR Y OFF-CENTER =====
+ST._cursorX = null;
+ST._cursorY = null;
+
+function initCanvasEvents(){
+  const wrap = document.getElementById('radar-wrap');
+
+  // Cursor — muestra cruz blanca y BRG/RNG al mover el mouse
+  cv.addEventListener('mousemove', e=>{
+    const rect = cv.getBoundingClientRect();
+    ST._cursorX = e.clientX - rect.left;
+    ST._cursorY = e.clientY - rect.top;
+    upd();
+  });
+
+  cv.addEventListener('mouseleave', ()=>{
+    ST._cursorX = null; ST._cursorY = null; upd();
+  });
+
+  // Click simple — mueve el centro (off-center) al punto clickeado
+  // El centro actual del radar en pixels es (W/2 + offX*PX, H/2 - offY*PX)
+  // Al clickear en (mx, my), el nuevo offX/offY es la diferencia en NM
+  cv.addEventListener('click', e=>{
+    const rect = cv.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const W = cv.width, H = cv.height;
+    const PX = Math.min(W,H)*0.43/ST.RNG;
+    // El OS debe quedar en el punto clickeado, por eso el centro se mueve
+    // en la direccion opuesta (centro se aleja del click para que OS quede ahi)
+    const dxPx = mx - W/2;
+    const dyPx = my - H/2;
+    ST.offX = -dxPx/PX;
+    ST.offY = dyPx/PX;
+    upd();
+  });
+
+  // Doble clic — resetea off-center
+  cv.addEventListener('dblclick', e=>{
+    e.stopPropagation();
+    ST.offX=0; ST.offY=0; upd();
+  });
+
+  cv.style.cursor='crosshair';
+}
+
 function init(){
   buildControlStrip();
   buildSidebar();
-  syncManualSlidersFromState();
   setInterval(tick,1000); tick();
   setInterval(trailLoop,3000);
+  initCanvasEvents();
   loadNavObjects().then(()=>upd());
 }
 

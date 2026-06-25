@@ -183,17 +183,19 @@ function drawRadar(os){
   if(ST.SHOW_OBJECTS && NAV_OBJECTS.length > 0){
     const osLat = os.lat, osLon = os.lon;
     if(osLat !== null && osLon !== null){
+      // Opacidad reducida para simular eco debil de radar, no nitido como un blanco
+      ctx.globalAlpha = 0.45;
       NAV_OBJECTS.forEach(obj=>{
         const {brg, rng} = brgRngBetween(osLat, osLon, obj.lat, obj.lon);
-        if(rng > ST.RNG * 1.05) return; // fuera del rango visible
+        if(rng > ST.RNG * 1.05) return;
         const nx = rng*Math.sin(d2r(brg));
         const ny = rng*Math.cos(d2r(brg));
         const [ox, oy] = ts(nx, ny);
         const st = OBJ_STYLE[obj.t] || OBJ_STYLE.baliza;
         ctx.fillStyle = st.color;
         ctx.strokeStyle = st.color;
-        ctx.lineWidth = 1;
-        const s = st.size;
+        ctx.lineWidth = 0.8;
+        const s = Math.max(1, st.size - 1); // un poco mas pequeno
         switch(st.shape){
           case 'circle':
             ctx.beginPath(); ctx.arc(ox,oy,s,0,Math.PI*2); ctx.fill();
@@ -232,6 +234,7 @@ function drawRadar(os){
             break;
         }
       });
+      ctx.globalAlpha = 1.0;
     }
   }
 

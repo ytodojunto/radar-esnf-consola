@@ -192,11 +192,31 @@ function buildControlStrip(){
     ST.vrm2.on=!ST.vrm2.on; this.textContent=ST.vrm2.on?'ON':'OFF'; this.classList.toggle('on',ST.vrm2.on); upd();
   });
   document.getElementById('vrm1-dist').addEventListener('input',function(){
-    ST.vrm1.dist=+this.value; document.getElementById('vrm1-v').textContent=(+this.value).toFixed(1); upd();
+    ST.vrm1.dist=+this.value; document.getElementById('vrm1-v').textContent=(+this.value).toFixed(2); upd();
   });
   document.getElementById('vrm2-dist').addEventListener('input',function(){
-    ST.vrm2.dist=+this.value; document.getElementById('vrm2-v').textContent=(+this.value).toFixed(1); upd();
+    ST.vrm2.dist=+this.value; document.getElementById('vrm2-v').textContent=(+this.value).toFixed(2); upd();
   });
+
+  // Scroll del mouse sobre los controles VRM/EBL
+  function addWheelVRM(id, stObj, key, step, min, max, fmt){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.parentElement.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -step : step;
+      stObj[key] = Math.max(min, Math.min(max, +(stObj[key]+delta).toFixed(2)));
+      el.value = stObj[key];
+      const vEl = document.getElementById(id.replace('dist','v').replace('brg','v'));
+      if(vEl) vEl.textContent = fmt(stObj[key]);
+      upd();
+    }, {passive:false});
+  }
+  addWheelVRM('vrm1-dist', ST.vrm1, 'dist', 0.05, 0.05, 24, v=>v.toFixed(2)+' NM');
+  addWheelVRM('vrm2-dist', ST.vrm2, 'dist', 0.05, 0.05, 24, v=>v.toFixed(2)+' NM');
+  addWheelVRM('ebl1-brg',  ST.ebl1, 'brg',  1,    0,   359, v=>String(Math.round(v)).padStart(3,'0')+'°');
+  addWheelVRM('ebl2-brg',  ST.ebl2, 'brg',  1,    0,   359, v=>String(Math.round(v)).padStart(3,'0')+'°');
+
 
   // EBL1/2
   document.getElementById('ebl1-toggle').addEventListener('click',function(){

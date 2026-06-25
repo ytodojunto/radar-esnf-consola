@@ -94,21 +94,17 @@ function initCanvasEvents(){
     ST._cursorX = null; ST._cursorY = null; upd();
   });
 
-  // Click simple — mueve el centro (off-center) al punto clickeado
-  // El centro actual del radar en pixels es (W/2 + offX*PX, H/2 - offY*PX)
-  // Al clickear en (mx, my), el nuevo offX/offY es la diferencia en NM
+  // Click simple — mueve el OS al punto clickeado
+  // Si clickeas abajo, el OS queda abajo y ganas vision hacia proa (arriba)
   cv.addEventListener('click', e=>{
+    if(e.detail > 1) return; // ignorar doble click
     const rect = cv.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const W = cv.width, H = cv.height;
-    const PX = Math.min(W,H)*0.43/ST.RNG;
-    // El OS debe quedar en el punto clickeado, por eso el centro se mueve
-    // en la direccion opuesta (centro se aleja del click para que OS quede ahi)
-    const dxPx = mx - W/2;
-    const dyPx = my - H/2;
-    ST.offX = -dxPx/PX;
-    ST.offY = dyPx/PX;
+    const PX = Math.min(W,H)*0.47/ST.RNG;
+    ST.offX = (mx - W/2) / PX;
+    ST.offY = (H/2 - my) / PX;
     upd();
   });
 

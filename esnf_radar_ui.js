@@ -70,10 +70,10 @@ function buildControlStrip(){
     <div class="ctrl-row">
       <span class="ctrl-label">VRM1</span>
       <button class="btn btn-sm" id="vrm1-toggle">OFF</button>
-      <div class="slider-mini"><input type="range" id="vrm1-dist" min="0.1" max="24" step="0.1" value="1.0"><span id="vrm1-v">1.0</span></div>
+      <div class="slider-mini"><input type="range" id="vrm1-dist" min="0.01" max="24" step="0.01" value="1.0"><span id="vrm1-v">1.00</span></div>
       <span class="ctrl-label" style="min-width:34px">VRM2</span>
       <button class="btn btn-sm" id="vrm2-toggle">OFF</button>
-      <div class="slider-mini"><input type="range" id="vrm2-dist" min="0.1" max="24" step="0.1" value="2.0"><span id="vrm2-v">2.0</span></div>
+      <div class="slider-mini"><input type="range" id="vrm2-dist" min="0.01" max="24" step="0.01" value="2.0"><span id="vrm2-v">2.00</span></div>
       <div class="divider"></div>
       <span class="ctrl-label">EBL1</span>
       <button class="btn btn-sm" id="ebl1-toggle">OFF</button>

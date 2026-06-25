@@ -33,6 +33,7 @@ const ST = {
   TRAIL: false,
   TRAILMIN: 6,
   INTERFERENCE: false,
+  SHOW_OBJECTS: true,   // capa de boyas/balizas/objetos del escenario VS
 
   // Ganancias (cosmetico / educativo)
   GAIN: 70,
@@ -75,6 +76,8 @@ const ST = {
 
   // Blancos remotos recibidos por la red AIS local (otras maquinas/cadetes)
   remoteAis: {}, // {nombre: {lat,lon,hdg,stw,cog,sog}}
+  // Blancos AIS reales decodificados del NMEA de Virtual Sailor (!AIVDM)
+  realAis: {}, // {mmsi: {nombre,lat,lon,hdg,sog,cog}}
   miNombre: null,
 
   ws: null,
@@ -114,6 +117,30 @@ function syncRemoteAisTargets(osLat, osLon){
     existing.brg = brg; existing.dst = rng;
     existing.hdg = (b.hdg!==null && b.hdg!==undefined) ? b.hdg : (b.cog||0);
     existing.stw = (b.stw!==null && b.stw!==undefined) ? b.stw : (b.sog||0);
+  });
+}
+
+// Convierte los blancos AIS REALES (decodificados del NMEA !AIVDM de Virtual
+// Sailor -- otros buques de la escena) a targets del radar.
+function syncRealAisTargets(osLat, osLon){
+  if(osLat===null || osLon===null) return;
+  const realIds = Object.keys(ST.realAis);
+  ST.targets = ST.targets.filter(t => !t.isRealAis || realIds.includes(t.id));
+  realIds.forEach(mmsi=>{
+    const b = ST.realAis[mmsi];
+    if(b.lat===null || b.lon===null || b.lat===undefined || b.lon===undefined) return;
+    const {brg,rng} = brgRngBetween(osLat, osLon, b.lat, b.lon);
+    let existing = ST.targets.find(t=>t.id===mmsi && t.isRealAis);
+    const nombre = b.nombre || ('MMSI '+mmsi);
+    if(!existing){
+      existing = { id: mmsi, name: nombre, mmsi: mmsi, status: 'AIS (Virtual Sailor)', isRealAis:true };
+      ST.targets.push(existing);
+      if(ST.selectedTargets.length===0) ST.selectedTargets.push(existing.id);
+    }
+    existing.name = nombre; // actualizar si el nombre llega despues (mensaje tipo 5)
+    existing.brg = brg; existing.dst = rng;
+    existing.hdg = (b.hdg!==null && b.hdg!==undefined) ? b.hdg : (b.cog||0);
+    existing.stw = (b.sog!==null && b.sog!==undefined) ? b.sog : 0;
   });
 }
 
@@ -238,5 +265,38 @@ function loadScenario(key){
   ST.selectedTargets = ST.targets.length ? [ST.targets[0].id] : [];
 }
 
-// Init default scenario
-loadScenario('maersk');
+// El radar arranca vacio (sin escenario precargado). Los escenarios de
+// ejemplo (Maersk Laberinto, Lady J, etc.) solo se cargan si el usuario
+// los toca explicitamente en el panel de escenarios -- nunca aparecen
+// "fantasma" mezclados con datos reales de Virtual Sailor en modo VIVO.
+
+// ============================================================
+// Capa de objetos de navegacion (boyas, balizas, puentes, etc.)
+// Cargados desde rdp_objects.json (generado del objects.txt de VS)
+// ============================================================
+let NAV_OBJECTS = [];
+
+async function loadNavObjects(){
+  try{
+    const r = await fetch('rdp_objects.json');
+    if(!r.ok) return;
+    NAV_OBJECTS = await r.json();
+    console.log('[RADAR] Objetos de navegacion cargados:', NAV_OBJECTS.length);
+  } catch(e){
+    console.warn('[RADAR] No se pudo cargar rdp_objects.json:', e.message);
+  }
+}
+
+// Colores y simbolos por tipo de objeto (estilo radar/carta nautica)
+const OBJ_STYLE = {
+  boya:     { color:'#44aaff', size:3,  shape:'circle'   },
+  verde:    { color:'#00ff41', size:4,  shape:'triangle'  },
+  rojo:     { color:'#ff3333', size:4,  shape:'triangle'  },
+  blanco:   { color:'#ffffff', size:3,  shape:'diamond'   },
+  amarillo: { color:'#ffff00', size:4,  shape:'diamond'   },
+  faro:     { color:'#ffff00', size:6,  shape:'star'      },
+  puente:   { color:'#aaaaaa', size:5,  shape:'square'    },
+  peligro:  { color:'#ff6600', size:5,  shape:'cross'     },
+  cardinal: { color:'#ffff00', size:4,  shape:'diamond'   },
+  baliza:   { color:'#aaaaaa', size:3,  shape:'circle'    },
+};

@@ -89,6 +89,12 @@ function drawRadar(os){
     ctx.beginPath();
     osTrailHistory.forEach((p,i)=>{ const [x,y]=ts(p.x,p.y); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
     ctx.stroke();
+    ctx.fillStyle='rgba(0,255,65,0.5)';
+    osTrailHistory.forEach((p,i)=>{
+      if(i % 3 !== 0) return;
+      const [x,y]=ts(p.x,p.y);
+      ctx.beginPath(); ctx.arc(x,y,1.6,0,Math.PI*2); ctx.fill();
+    });
   }
 
   // === Targets ===
@@ -97,7 +103,7 @@ function drawRadar(os){
     const isSelected = ST.selectedTargets.includes(tgt.id);
     const [txs,tys] = ts(sol.pos.x, sol.pos.y);
 
-    // trail
+    // trail (linea + marcas de huella, estilo ARPA real)
     if(ST.TRAIL){
       if(!trailHistory[tgt.id]) trailHistory[tgt.id]=[];
       const hist = trailHistory[tgt.id];
@@ -105,6 +111,12 @@ function drawRadar(os){
       ctx.beginPath();
       hist.forEach((p,i)=>{ const [x,y]=ts(p.x,p.y); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
       ctx.stroke();
+      ctx.fillStyle='rgba(255,255,0,0.45)';
+      hist.forEach((p,i)=>{
+        if(i % 3 !== 0) return; // una marca cada 3 puntos para no saturar
+        const [x,y]=ts(p.x,p.y);
+        ctx.beginPath(); ctx.arc(x,y,1.6,0,Math.PI*2); ctx.fill();
+      });
     }
 
     const proj = ST.VECMIN/60;
@@ -164,6 +176,62 @@ function drawRadar(os){
       ctx.closePath(); ctx.fill();
     }
   });
+
+  // === Capa de objetos de navegacion (boyas, balizas, puentes) ===
+  if(ST.SHOW_OBJECTS && NAV_OBJECTS.length > 0){
+    const osLat = os.lat, osLon = os.lon;
+    if(osLat !== null && osLon !== null){
+      NAV_OBJECTS.forEach(obj=>{
+        const {brg, rng} = brgRngBetween(osLat, osLon, obj.lat, obj.lon);
+        if(rng > ST.RNG * 1.05) return; // fuera del rango visible
+        const nx = rng*Math.sin(d2r(brg));
+        const ny = rng*Math.cos(d2r(brg));
+        const [ox, oy] = ts(nx, ny);
+        const st = OBJ_STYLE[obj.t] || OBJ_STYLE.baliza;
+        ctx.fillStyle = st.color;
+        ctx.strokeStyle = st.color;
+        ctx.lineWidth = 1;
+        const s = st.size;
+        switch(st.shape){
+          case 'circle':
+            ctx.beginPath(); ctx.arc(ox,oy,s,0,Math.PI*2); ctx.fill();
+            break;
+          case 'triangle':
+            // Verde apunta arriba (babor), rojo apunta abajo (estribor)
+            const flip = obj.t==='rojo' ? 1 : -1;
+            ctx.beginPath();
+            ctx.moveTo(ox, oy + flip*s);
+            ctx.lineTo(ox - s, oy - flip*s);
+            ctx.lineTo(ox + s, oy - flip*s);
+            ctx.closePath(); ctx.fill();
+            break;
+          case 'diamond':
+            ctx.beginPath();
+            ctx.moveTo(ox, oy-s); ctx.lineTo(ox+s, oy);
+            ctx.lineTo(ox, oy+s); ctx.lineTo(ox-s, oy);
+            ctx.closePath(); ctx.fill();
+            break;
+          case 'square':
+            ctx.fillRect(ox-s, oy-s, s*2, s*2);
+            break;
+          case 'cross':
+            ctx.beginPath();
+            ctx.moveTo(ox-s,oy); ctx.lineTo(ox+s,oy);
+            ctx.moveTo(ox,oy-s); ctx.lineTo(ox,oy+s);
+            ctx.stroke();
+            break;
+          case 'star':
+            ctx.beginPath(); ctx.arc(ox,oy,s,0,Math.PI*2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ox,oy-s*1.6); ctx.lineTo(ox,oy+s*1.6);
+            ctx.moveTo(ox-s*1.6,oy); ctx.lineTo(ox+s*1.6,oy);
+            ctx.stroke();
+            break;
+        }
+      });
+    }
+  }
 
   // === OS own ship ===
   const osr = d2r(os.hdg);
@@ -260,11 +328,27 @@ function drawRadar(os){
 
 function updateTrailHistory(os){
   const now = Date.now();
+  const cutoff = now - ST.TRAILMIN*60*1000;
+
   ST.targets.forEach(tgt=>{
     const sol = computeTargetSolution(os, tgt);
     if(!trailHistory[tgt.id]) trailHistory[tgt.id]=[];
     trailHistory[tgt.id].push({x:sol.pos.x, y:sol.pos.y, t:now});
-    const cutoff = now - ST.TRAILMIN*60*1000;
     trailHistory[tgt.id] = trailHistory[tgt.id].filter(p=>p.t>cutoff).slice(-200);
   });
+
+  // OS trail: solo tiene sentido en True Motion, donde el OS se desplaza
+  // realmente por la pantalla. En Relative Motion el OS esta siempre fijo
+  // en el centro por definicion, asi que no hay rastro que mostrar.
+  if(ST.MODE==='TM'){
+    if(!ST._osTrailOriginLat) { ST._osTrailOriginLat = os.lat; ST._osTrailOriginLon = os.lon; }
+    const dLat = (os.lat - ST._osTrailOriginLat)*60;
+    const dLon = (os.lon - ST._osTrailOriginLon)*60*Math.cos(d2r(os.lat));
+    osTrailHistory.push({x:dLon, y:dLat, t:now});
+    while(osTrailHistory.length && osTrailHistory[0].t<=cutoff) osTrailHistory.shift();
+    if(osTrailHistory.length>200) osTrailHistory.shift();
+  } else {
+    osTrailHistory.length = 0; // limpiar al volver a RM
+    ST._osTrailOriginLat = null; ST._osTrailOriginLon = null;
+  }
 }

@@ -47,6 +47,7 @@ function buildControlStrip(){
       <button class="btn btn-sm" data-vec="30">30</button>
       <div class="divider"></div>
       <button class="btn on" id="toggle-rings">ANILLOS</button>
+      <button class="btn on" id="toggle-objects">BOYAS/BALIZAS</button>
       <button class="btn" id="toggle-trail">TRAIL</button>
       <span class="ctrl-label" style="min-width:auto">tiempo:</span>
       <button class="btn btn-sm" data-trailmin="3">3m</button>
@@ -162,6 +163,9 @@ function buildControlStrip(){
   document.getElementById('toggle-rings').addEventListener('click',function(){
     ST.RINGS=!ST.RINGS; this.classList.toggle('on',ST.RINGS); upd();
   });
+  document.getElementById('toggle-objects').addEventListener('click',function(){
+    ST.SHOW_OBJECTS=!ST.SHOW_OBJECTS; this.classList.toggle('on',ST.SHOW_OBJECTS); upd();
+  });
   document.getElementById('toggle-trail').addEventListener('click',function(){
     ST.TRAIL=!ST.TRAIL; this.classList.toggle('on',ST.TRAIL); upd();
   });
@@ -250,7 +254,7 @@ function buildSidebar(){
     <div class="scenario-block">
       <div class="stitle">ESCENARIOS PREDEFINIDOS</div>
       <div class="scenario-btns">
-        <button class="btn on" data-sc="maersk">MAERSK LABERINTO (real)</button>
+        <button class="btn" data-sc="maersk">MAERSK LABERINTO (real)</button>
         <button class="btn" data-sc="ladyj">LADY J (real)</button>
         <button class="btn" data-sc="multi">Multi-blanco + corriente</button>
         <button class="btn" data-sc="cruce">Cruce peligroso</button>

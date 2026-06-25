@@ -14,6 +14,7 @@ function connectWS(){
         const payload = JSON.parse(ev.data);
         ST.live = payload.propio;
         ST.remoteAis = payload.blancos || {};
+        ST.realAis = payload.ais || {};
         ST.miNombre = payload.mi_nombre || null;
         const st = document.getElementById('live-status');
         const nCompaneros = Object.keys(ST.remoteAis).length;
@@ -46,6 +47,7 @@ function upd(){
   if(ST.SOURCE==='live'){
     const osPreview = computeOwnShip();
     syncRemoteAisTargets(osPreview.lat, osPreview.lon);
+    syncRealAisTargets(osPreview.lat, osPreview.lon);
     buildTTSelect();
   }
   const os = updateSidebarData();
@@ -73,7 +75,7 @@ function init(){
   syncManualSlidersFromState();
   setInterval(tick,1000); tick();
   setInterval(trailLoop,3000);
-  upd();
+  loadNavObjects().then(()=>upd());
 }
 
 init();

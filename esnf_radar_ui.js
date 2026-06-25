@@ -15,10 +15,7 @@ function buildControlStrip(){
       <button class="btn on" data-mode="RM">REL. MOTION</button>
       <button class="btn" data-mode="TM">TRUE MOTION</button>
       <div class="divider"></div>
-      <span class="ctrl-label">FUENTE OS</span>
-      <button class="btn on" data-src="manual">MANUAL</button>
-      <button class="btn" data-src="live">VIVO (VS)</button>
-      <span id="live-status" style="font-size:8px;color:#664400;margin-left:6px">○ Desconectado</span>
+      <span id="live-status" style="display:none"></span>
       <div class="divider"></div>
       <span class="ctrl-label">BUQUE/ESTACION</span>
       <input type="text" id="station-input" value="OS" placeholder="Nombre" style="width:90px;background:#000;border:1px solid #1a3a1a;color:#ffff00;font-family:'Courier New',monospace;font-size:9px;padding:3px 5px;border-radius:2px">
@@ -68,6 +65,7 @@ function buildControlStrip(){
       <div class="slider-mini"><input type="range" id="rain" min="0" max="100" value="10"><span id="rain-v">10</span></div>
       <div class="divider"></div>
       <button class="btn danger" id="btn-mob">MOB</button>
+      <button class="btn" id="btn-offctr" title="Resetear centro (tambien doble clic en el radar)">OFF-CTR: ON</button>
     </div>
 
     <div class="ctrl-row">
@@ -84,21 +82,6 @@ function buildControlStrip(){
       <span class="ctrl-label" style="min-width:34px">EBL2</span>
       <button class="btn btn-sm" id="ebl2-toggle">OFF</button>
       <div class="slider-mini"><input type="range" id="ebl2-brg" min="0" max="359" step="1" value="90"><span id="ebl2-v">090°</span></div>
-    </div>
-
-    <div class="ctrl-row" id="manual-os-row">
-      <span class="ctrl-label">OS HDG</span>
-      <div class="slider-mini"><input type="range" id="os-hdg" min="0" max="359" step="1" value="0"><span id="os-hdg-v">000°</span></div>
-      <span class="ctrl-label" style="min-width:34px">OS STW</span>
-      <div class="slider-mini"><input type="range" id="os-stw" min="0" max="25" step="0.5" value="10"><span id="os-stw-v">10.0</span></div>
-      <div class="divider"></div>
-      <span class="ctrl-label">CORRIENTE</span>
-      <div class="slider-mini"><input type="range" id="cur-dir" min="0" max="359" step="1" value="0"><span id="cur-dir-v">000°</span></div>
-      <div class="slider-mini"><input type="range" id="cur-spd" min="0" max="3" step="0.1" value="0"><span id="cur-spd-v">0.0</span></div>
-      <div class="divider"></div>
-      <span class="ctrl-label">VIENTO</span>
-      <div class="slider-mini"><input type="range" id="wind-dir" min="0" max="359" step="1" value="0"><span id="wind-dir-v">000°</span></div>
-      <div class="slider-mini"><input type="range" id="wind-spd" min="0" max="60" step="1" value="0"><span id="wind-spd-v">0</span></div>
     </div>
   `;
 
@@ -122,8 +105,6 @@ function buildControlStrip(){
   el.querySelectorAll('[data-src]').forEach(b=>b.addEventListener('click',()=>{
     el.querySelectorAll('[data-src]').forEach(x=>x.classList.remove('on'));
     b.classList.add('on'); ST.SOURCE=b.dataset.src;
-    document.getElementById('manual-os-row').style.opacity = (ST.SOURCE==='live')?'0.4':'1';
-    document.getElementById('manual-os-row').querySelectorAll('input').forEach(i=>i.disabled=(ST.SOURCE==='live'));
     if(ST.SOURCE==='live' && !ST.ws) connectWS();
     updateStationLabel();
     upd();
@@ -199,6 +180,14 @@ function buildControlStrip(){
     upd();
   });
 
+  // OFF-CENTER reset
+  document.getElementById('btn-offctr').addEventListener('click',function(){
+    ST.offX=0; ST.offY=0;
+    this.textContent='OFF-CTR: ON';
+    this.classList.remove('warn');
+    upd();
+  });
+
   // VRM1/2
   document.getElementById('vrm1-toggle').addEventListener('click',function(){
     ST.vrm1.on=!ST.vrm1.on; this.textContent=ST.vrm1.on?'ON':'OFF'; this.classList.toggle('on',ST.vrm1.on); upd();
@@ -227,112 +216,124 @@ function buildControlStrip(){
     ST.ebl2.brg=+this.value; document.getElementById('ebl2-v').textContent=String(this.value).padStart(3,'0')+'°'; upd();
   });
 
-  // Manual OS
-  document.getElementById('os-hdg').addEventListener('input',function(){
-    ST.os.hdg=+this.value; document.getElementById('os-hdg-v').textContent=String(this.value).padStart(3,'0')+'°'; upd();
-  });
-  document.getElementById('os-stw').addEventListener('input',function(){
-    ST.os.stw=+this.value; document.getElementById('os-stw-v').textContent=(+this.value).toFixed(1); upd();
-  });
-  document.getElementById('cur-dir').addEventListener('input',function(){
-    ST.current.dir=+this.value; document.getElementById('cur-dir-v').textContent=String(this.value).padStart(3,'0')+'°'; upd();
-  });
-  document.getElementById('cur-spd').addEventListener('input',function(){
-    ST.current.spd=+this.value; document.getElementById('cur-spd-v').textContent=(+this.value).toFixed(1); upd();
-  });
-  document.getElementById('wind-dir').addEventListener('input',function(){
-    ST.wind.dir=+this.value; document.getElementById('wind-dir-v').textContent=String(this.value).padStart(3,'0')+'°'; upd();
-  });
-  document.getElementById('wind-spd').addEventListener('input',function(){
-    ST.wind.spd=+this.value; document.getElementById('wind-spd-v').textContent=this.value; upd();
-  });
 }
 
 function buildSidebar(){
   const el = document.getElementById('sidebar');
   el.innerHTML = `
-    <div class="scenario-block">
-      <div class="stitle">ESCENARIOS PREDEFINIDOS</div>
-      <div class="scenario-btns">
-        <button class="btn" data-sc="maersk">MAERSK LABERINTO (real)</button>
-        <button class="btn" data-sc="ladyj">LADY J (real)</button>
-        <button class="btn" data-sc="multi">Multi-blanco + corriente</button>
-        <button class="btn" data-sc="cruce">Cruce peligroso</button>
-        <button class="btn" data-sc="frente">Frente a frente</button>
-        <button class="btn" data-sc="alcance">Alcance</button>
-        <button class="btn" data-sc="seguro">Paso seguro</button>
+    <!-- TX / STBY indicator bar -->
+    <div class="tx-bar stby" id="tx-bar" onclick="toggleTxStby()">
+      STBY
+    </div>
+
+    <!-- Datos propios OS -->
+    <div class="f-panel">
+      <div class="f-title">OS — BUQUE PROPIO</div>
+      <div class="f-grid2">
+        <div>
+          <div class="f-lbl">HDG</div>
+          <div class="f-val large" id="d-hdg">000°</div>
+        </div>
+        <div>
+          <div class="f-lbl">SPD (STW)</div>
+          <div class="f-val large" id="d-stw">0.0<span class="f-unit">kn</span></div>
+        </div>
+      </div>
+      <div class="f-sep"></div>
+      <div class="f-grid2">
+        <div>
+          <div class="f-lbl">COG</div>
+          <div class="f-val large" id="d-cog">000°</div>
+        </div>
+        <div>
+          <div class="f-lbl">SOG</div>
+          <div class="f-val large" id="d-sog">0.0<span class="f-unit">kn</span></div>
+        </div>
+      </div>
+      <div class="f-sep"></div>
+      <div class="f-lbl">OS POSIT</div>
+      <div class="f-val small" id="d-pos">— —</div>
+      <div style="margin-top:3px">
+        <div class="f-lbl">CORRIENTE</div>
+        <div class="f-val small" id="d-cur">000° / 0.0kn</div>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-title">
-        DATOS PROPIOS (OS)
-        <span class="src" id="src-indicator">MANUAL</span>
-      </div>
-      <div class="data-grid">
-        <div class="data-item"><span class="dl">HDG (aguja)</span><span class="dv" id="d-hdg">000°</span></div>
-        <div class="data-item"><span class="dl">STW (agua)</span><span class="dv" id="d-stw">0.0 kn</span></div>
-        <div class="data-item"><span class="dl">COG (fondo)</span><span class="dv" id="d-cog">000°</span></div>
-        <div class="data-item"><span class="dl">SOG (fondo)</span><span class="dv" id="d-sog">0.0 kn</span></div>
-        <div class="data-item full"><span class="dl">POSICION</span><span class="dv pos" id="d-pos">— —</span></div>
-        <div class="data-item"><span class="dl">CORRIENTE</span><span class="dv" id="d-cur" style="font-size:11px">000° / 0.0kn</span></div>
-        <div class="data-item"><span class="dl">VIENTO REAL</span><span class="dv" id="d-windT" style="font-size:11px">000° / 0kn</span></div>
-        <div class="data-item full"><span class="dl">VIENTO APARENTE</span><span class="dv" id="d-windA" style="font-size:11px">000° / 0kn</span></div>
-      </div>
-    </div>
-
-    <div class="panel" id="vrm-ebl-panel">
-      <div class="panel-title">VRM / EBL / IL</div>
-      <div class="data-grid">
-        <div class="data-item"><span class="dl">VRM1</span><span class="dv" id="d-vrm1" style="font-size:13px">OFF</span></div>
-        <div class="data-item"><span class="dl">VRM2</span><span class="dv" id="d-vrm2" style="font-size:13px">OFF</span></div>
-        <div class="data-item"><span class="dl">EBL1</span><span class="dv" id="d-ebl1" style="font-size:13px">OFF</span></div>
-        <div class="data-item"><span class="dl">EBL2</span><span class="dv" id="d-ebl2" style="font-size:13px">OFF</span></div>
+    <!-- VRM / EBL -->
+    <div class="f-panel">
+      <div class="f-title">VRM / EBL</div>
+      <div class="f-grid2">
+        <div class="f-instbox">
+          <div class="f-inst-lbl">VRM1</div>
+          <div class="f-inst-val" id="d-vrm1">OFF</div>
+        </div>
+        <div class="f-instbox">
+          <div class="f-inst-lbl">VRM2</div>
+          <div class="f-inst-val" id="d-vrm2">OFF</div>
+        </div>
+        <div class="f-instbox">
+          <div class="f-inst-lbl">EBL1</div>
+          <div class="f-inst-val" id="d-ebl1">OFF</div>
+        </div>
+        <div class="f-instbox">
+          <div class="f-inst-lbl">EBL2</div>
+          <div class="f-inst-val" id="d-ebl2">OFF</div>
+        </div>
       </div>
     </div>
 
-    <div class="tt-block">
-      <div class="panel-title" style="margin-bottom:5px">PANEL TT / ACQ TARGETS <span style="font-size:7px;color:#336633;font-weight:normal">(max. 3)</span></div>
+    <!-- ACQ Targets -->
+    <div class="f-panel">
+      <div class="f-title">ACQ TARGETS <span style="font-size:7px;color:#004400">(toca para seleccionar)</span></div>
       <div class="tt-select" id="tt-select"></div>
       <div id="tt-data"></div>
     </div>
-
-    <div class="legend-box">
-      <div class="li"><span class="dot" style="background:#00ff41"></span>OS — buque propio</div>
-      <div class="li"><span class="dot" style="background:#ffff00"></span>TGT — blancos</div>
-      <div class="li">━ línea continua = HDG (aguja)</div>
-      <div class="li">┄ línea punteada = COG/SOG (deriva)</div>
-      <div class="li">━ vector grueso = ARPA (relativo)</div>
-      <div class="li"><span class="dot" style="background:#ff3333"></span>CPA &nbsp; <span class="dot" style="background:#44ff88"></span>BCR</div>
-    </div>
   `;
-
-  el.querySelectorAll('[data-sc]').forEach(b=>b.addEventListener('click',()=>{
-    el.querySelectorAll('[data-sc]').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on');
-    loadScenario(b.dataset.sc);
-    syncManualSlidersFromState();
-    buildTTSelect();
-    upd();
-  }));
 
   buildTTSelect();
 }
 
+function toggleTxStby(){
+  const bar = document.getElementById('tx-bar');
+  const srcBtns = document.querySelectorAll('[data-src]');
+  if(ST.SOURCE==='live'){
+    // Switch to STBY
+    ST.SOURCE='manual';
+    srcBtns.forEach(b=>{ b.classList.toggle('on', b.dataset.src==='manual'); });
+  } else {
+    // Switch to TX
+    ST.SOURCE='live';
+    srcBtns.forEach(b=>{ b.classList.toggle('on', b.dataset.src==='live'); });
+    if(!ST.ws) connectWS();
+  }
+  updateTxBar();
+  upd();
+}
+
+function updateTxBar(){
+  const bar = document.getElementById('tx-bar');
+  if(!bar) return;
+  if(ST.SOURCE==='live'){
+    if(ST.live && ST.live.conectado_vs){
+      bar.textContent='TX — RECIBIENDO DATOS';
+      bar.className='tx-bar tx';
+    } else {
+      bar.textContent='TX — CONECTANDO...';
+      bar.className='tx-bar tx';
+      bar.style.color='#ffaa00';
+    }
+  } else {
+    bar.textContent='STBY';
+    bar.className='tx-bar stby';
+    bar.style.color='';
+  }
+}
+
+
+
 function updateStationLabel(){
   const name = (ST.SOURCE==='live' && ST.miNombre) ? ST.miNombre : ST.stationNameManual;
   document.getElementById('station-name').textContent = 'BUQUE: ' + name;
-}
-
-function syncManualSlidersFromState(){
-  document.getElementById('os-hdg').value = ST.os.hdg;
-  document.getElementById('os-hdg-v').textContent = String(ST.os.hdg).padStart(3,'0')+'°';
-  document.getElementById('os-stw').value = ST.os.stw;
-  document.getElementById('os-stw-v').textContent = ST.os.stw.toFixed(1);
-  document.getElementById('cur-dir').value = ST.current.dir;
-  document.getElementById('cur-dir-v').textContent = String(ST.current.dir).padStart(3,'0')+'°';
-  document.getElementById('cur-spd').value = ST.current.spd;
-  document.getElementById('cur-spd-v').textContent = ST.current.spd.toFixed(1);
 }
 
 function buildTTSelect(){
@@ -369,23 +370,7 @@ function updateSidebarData(){
   document.getElementById('d-pos').textContent = ST.positionHidden ? '••• OCULTA •••' : (ll.lat+'  '+ll.lon);
   document.getElementById('d-cur').textContent = String(Math.round(os.curdir)).padStart(3,'0')+'° / '+os.curspd.toFixed(1)+'kn';
 
-  const srcInd = document.getElementById('src-indicator');
-  if(ST.SOURCE==='live'){
-    srcInd.textContent = ST.live.conectado_vs ? 'VIVO ●' : 'VIVO (sin datos)';
-    srcInd.classList.toggle('live', ST.live.conectado_vs);
-  } else {
-    srcInd.textContent = 'MANUAL'; srcInd.classList.remove('live');
-  }
-
-  // Wind: true vs apparent
-  // True wind given directly. Apparent = true wind vector minus OS movement vector (vector subtraction as felt on deck)
-  const windTrue = vecFromHdgSpd(ST.wind.dir, ST.wind.spd);
-  const osVec = os.cog_vec;
-  const appX = windTrue.x - osVec.x, appY = windTrue.y - osVec.y;
-  const appSpd = Math.sqrt(appX*appX+appY*appY);
-  const appDir = norm360(r2d(Math.atan2(appX,appY)));
-  document.getElementById('d-windT').textContent = String(ST.wind.dir).padStart(3,'0')+'° / '+ST.wind.spd+'kn';
-  document.getElementById('d-windA').textContent = String(Math.round(appDir)).padStart(3,'0')+'° / '+appSpd.toFixed(1)+'kn';
+  updateTxBar();
 
   // VRM/EBL readouts
   document.getElementById('d-vrm1').textContent = ST.vrm1.on ? ST.vrm1.dist.toFixed(2)+' NM' : 'OFF';
@@ -396,7 +381,7 @@ function updateSidebarData(){
   // TT panel for ALL selected targets (up to 3), shown stacked compactly
   const ttDiv = document.getElementById('tt-data');
   if(ST.selectedTargets.length===0){
-    ttDiv.innerHTML = '<div style="font-size:9px;color:#336633">Sin blancos seleccionados — tocá uno o más arriba</div>';
+    ttDiv.innerHTML = '<div style="font-size:8px;color:#004400;padding:4px">Sin blancos — tocá uno arriba</div>';
     return os;
   }
 
@@ -404,21 +389,28 @@ function updateSidebarData(){
     const tgt = ST.targets.find(t=>t.id===tid);
     if(!tgt) return '';
     const sol = computeTargetSolution(os, tgt);
-    const cpaClass = (!isNaN(sol.cpa) && sol.cpa<0.5) ? 'danger' : (!isNaN(sol.cpa) && sol.cpa<2 ? 'warn' : 'ok');
+    const cpaC = (!isNaN(sol.cpa) && sol.cpa<0.5) ? 'danger' : (!isNaN(sol.cpa) && sol.cpa<2 ? 'warn' : '');
+    const mmsiLabel = tgt.mmsi && tgt.mmsi!=='—' ? 'MMSI '+tgt.mmsi : tgt.status||'';
     return `
-      <div style="border:1px solid #0f2a0f;border-radius:3px;padding:5px 6px;margin-bottom:5px;background:#020a02">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="color:#ffff00;font-weight:bold;font-size:10px">${tgt.isRemoteAis?'📡 ':''}${tgt.name}</span>
-          <span style="font-size:8px;color:#336633">${tgt.mmsi}</span>
+      <div class="f-tgt">
+        <div class="f-tgt-hdr">
+          <span>${tgt.isRemoteAis?'📡 ':tgt.isRealAis?'⚓ ':''}${tgt.name}</span>
+          <span style="font-size:7px;color:#004400">${mmsiLabel}</span>
         </div>
-        <div class="tt-row"><span class="lbl">BRG/RNG</span><span class="val">${String(Math.round(tgt.brg)).padStart(3,'0')}°R / ${tgt.dst.toFixed(2)} NM</span></div>
-        <div class="tt-row"><span class="lbl">HDG/STW</span><span class="val">${String(Math.round(tgt.hdg)).padStart(3,'0')}° / ${tgt.stw.toFixed(1)} kn</span></div>
-        <div class="tt-row"><span class="lbl">COG/SOG</span><span class="val" style="color:#aaffaa">${String(Math.round(sol.tgt_cog)).padStart(3,'0')}° / ${sol.tgt_sog.toFixed(1)} kn</span></div>
-        <div class="tt-row"><span class="lbl">CPA</span><span class="val ${cpaClass}">${isNaN(sol.cpa)?'—':sol.cpa.toFixed(3)+' NM'}</span></div>
-        <div class="tt-row"><span class="lbl">TCPA</span><span class="val ${cpaClass}">${fmtTime(sol.tcpa)}</span></div>
-        <div class="tt-row"><span class="lbl">BCR</span><span class="val">${sol.bcr!==null?sol.bcr.toFixed(3)+' NM':'—'}</span></div>
-        <div class="tt-row"><span class="lbl">BCT</span><span class="val">${sol.bct!==null?fmtTime(sol.bct):'—'}</span></div>
-        <div class="tt-row"><span class="lbl">STATUS</span><span class="val">${tgt.status}</span></div>
+        <div class="f-grid2">
+          <div><div class="f-lbl">BRG</div><div class="f-val med">${String(Math.round(tgt.brg)).padStart(3,'0')}°R</div></div>
+          <div><div class="f-lbl">RNG</div><div class="f-val med">${tgt.dst.toFixed(2)}<span class="f-unit">NM</span></div></div>
+        </div>
+        <div class="f-sep"></div>
+        <div class="f-grid2">
+          <div><div class="f-lbl">COG</div><div class="f-val med">${String(Math.round(sol.tgt_cog)).padStart(3,'0')}°</div></div>
+          <div><div class="f-lbl">SOG</div><div class="f-val med">${sol.tgt_sog.toFixed(1)}<span class="f-unit">kn</span></div></div>
+        </div>
+        <div class="f-sep"></div>
+        <div class="f-row"><span class="f-lbl">CPA</span><span class="f-val med ${cpaC}">${isNaN(sol.cpa)?'—':sol.cpa.toFixed(3)+' NM'}</span></div>
+        <div class="f-row"><span class="f-lbl">TCPA</span><span class="f-val med ${cpaC}">${fmtTime(sol.tcpa)}</span></div>
+        <div class="f-row"><span class="f-lbl">BCR</span><span class="f-val small">${sol.bcr!==null?sol.bcr.toFixed(2)+' NM':'—'}</span></div>
+        <div class="f-row"><span class="f-lbl">BCT</span><span class="f-val small">${sol.bct!==null?fmtTime(sol.bct):'—'}</span></div>
       </div>
     `;
   }).join('');
